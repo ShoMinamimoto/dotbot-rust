@@ -53,7 +53,7 @@ For example, your config might look something like:
 - cargo-update: true
 
 # Installs certain cargo binaries
-- brew:
+- cargo:
     - ripgrep
     - bottom
     - fd-find
