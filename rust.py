@@ -12,28 +12,20 @@ class Rust(dotbot.Plugin):
 
     def __init__(self, *args, **kwargs) -> None:
         self._directives = {
-            'install-brew': self._install_brew,
-            'brew': self._brew,
-            'cask': self._cask,
-            'tap': self._tap,
-            'brewfile': self._brewfile,
+            'install-rustup': self._install_rustup,
+            'cargo': self._cargo,
+            'cargo-update': self._cargo_update,
         }
         self._defaults = {
-            'brew': {
+            'cargo': {
                 'stdin': False,
-                'stderr': False,
-                'stdout': False,
-                'force_intel': False,
-            },
-            'cask': {
-                'stdin': False,
-                'stderr': False,
-                'stdout': False,
-                'force_intel': False,
-            },
-            'brewfile': {
-                'stdin': True,
                 'stderr': True,
+                'stdout': False,
+                'force_intel': False,
+            },
+            'cargo-update': {
+                'stdin': False,
+                'stderr': False,
                 'stdout': True,
                 'force_intel': False,
             },
@@ -65,27 +57,13 @@ class Rust(dotbot.Plugin):
                 stderr=devnull if defaults['stderr'] else None,
             )
 
-    def _tap(self, tap_list, defaults) -> bool:
-        result: bool = True
-
-        for tap in tap_list:
-            self._log.info(f'Tapping {tap}')
-            cmd: str = f'brew tap {tap}'
-            cmd_result: int = self._invoke_shell_command(cmd, defaults)
-            if cmd_result != 0:
-                # even if one tap fails, attempt the remaining ones
-                self._log.warning(f'Failed to tap [{tap}]')
-                result = False
-        return result
-
-    def _brew(self, packages: list, defaults: Mapping[str, Any]) -> bool:
+    def _cargo(self, packages: list, defaults: Mapping[str, Any]) -> bool:
         result: bool = True
 
         for pkg in packages:
             run = self._install(
-                'brew install {pkg}',
-                'test -d /usr/local/Cellar/{pkg_name} '
-                + '|| brew ls --versions {pkg_name}',
+                'cargo install {pkg}',
+                'cargo install --list | grep "^{pkg_name} "',
                 pkg,
                 defaults,
             )
@@ -94,27 +72,7 @@ class Rust(dotbot.Plugin):
                 result = False
 
         if result:
-            self._log.info('All brew packages have been installed')
-
-        return result
-
-    def _cask(self, packages, defaults) -> bool:
-        result: bool = True
-
-        for pkg in packages:
-            run = self._install(
-                'brew install --cask {pkg}',
-                'test -d /usr/local/Caskroom/{pkg_name} '
-                + '|| brew ls --cask --versions {pkg_name}',
-                pkg,
-                defaults,
-            )
-            if not run:
-                self._log.error('Some packages were not installed')
-                result = False
-
-        if result:
-            self._log.info('All cask packages have been installed')
+            self._log.info('All cargo packages have been installed')
 
         return result
 
@@ -158,26 +116,35 @@ class Rust(dotbot.Plugin):
 
             return 0 == result
 
-    def _brewfile(self, brew_files: list, defaults: Mapping[str, Any]) -> bool:
-        result: bool = True
-
-        for file in brew_files:
-            self._log.info(f'Installing from file {file}')
-            cmd = f'brew bundle --verbose --file={file}'
-
-            if 0 != self._invoke_shell_command(cmd, defaults):
-                self._log.warning(f'Failed to install file [{file}]')
-                result = False
-
-        return result
-
-    def _install_brew(self, val: bool, defaults: Mapping[str, Any]) -> bool:
+    def _install_rustup(self, val: bool, defaults: Mapping[str, Any]) -> bool:
         if not val:
             self._log.error(
-                'Why would you even put `install-brew: false` in there?'
+                'Why would you even put `install-rustup: false` in there?'
             )
             return False
 
-        link = 'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh'
-        cmd = f'command -v brew >/dev/null || /bin/bash -c "$(curl -fsSL {link})"'
-        return self._install(cmd, 'command -v brew', 'brew', defaults)
+        link = 'https://sh.rustup.rs'
+        cmd = f'curl --proto "=https" --tlsv1.2 -sSf {link} | sh -s -- -y --no-modify-path'
+        return self._install(cmd, 'command -v rustup', 'rustup', defaults)
+
+    def _cargo_update(self, val: bool, defaults: Mapping[str, Any]) -> bool:
+        if not val:
+            self._log.error("Okay, guess I'm not updating.")
+            return False
+
+        cargoupdate = self._install(
+            'cargo install cargo-install-update',
+            'cargo install-update -V',
+            'cargo-install-update',
+            defaults,
+        )
+        if not cargoupdate:
+            return False
+
+        result = self._invoke_shell_command(
+            'cargo install-update --all', defaults
+        )
+
+        if 0 == result:
+            self._log.info('All cargo packages up to date.')
+        return 0 == result
