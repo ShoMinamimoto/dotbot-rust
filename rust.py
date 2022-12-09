@@ -133,9 +133,9 @@ class Rust(dotbot.Plugin):
             return False
 
         cargoupdate = self._install(
-            'cargo install cargo-install-update',
+            'cargo install cargo-update',
             'cargo install-update -V',
-            'cargo-install-update',
+            'cargo-update',
             defaults,
         )
         if not cargoupdate:
