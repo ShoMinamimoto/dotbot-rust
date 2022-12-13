@@ -112,7 +112,7 @@ class Rust(dotbot.Plugin):
                 install_format.format(pkg=pkg), defaults
             )
             if 0 != result:
-                self._log.warning('Failed to install [{pkg}]')
+                self._log.warning(f'Failed to install [{pkg}]')
 
             return 0 == result
 
